@@ -2,10 +2,26 @@ import { Storage } from '@plasmohq/storage'
 
 const storage = new Storage()
 
+// 起動時に拡張機能のIDを保存
+const saveExtensionId = async () => {
+	const extensionId = chrome.runtime.id
+	await storage.set('extensionId', extensionId)
+	console.log('Extension ID saved:', extensionId)
+}
+
+// 初期化時にIDを保存
+saveExtensionId()
+
 chrome.runtime.onMessageExternal.addListener(
 	async (request, sender, sendResponse) => {
 		try {
 			switch (request.type) {
+				case 'GET_EXTENSION_ID': {
+					const extensionId = await storage.get('extensionId')
+					sendResponse({ success: true, extensionId })
+					break
+				}
+
 				case 'GET_CURRENT_TABS': {
 					const tabs = await chrome.tabs.query({ currentWindow: true })
 					const formattedTabs = tabs.map((tab) => ({
