@@ -14,6 +14,7 @@ saveExtensionId()
 
 chrome.runtime.onMessageExternal.addListener(
 	async (request, sender, sendResponse) => {
+		console.log('Received message:', request, 'from:', sender)
 		try {
 			switch (request.type) {
 				case 'GET_EXTENSION_ID': {
@@ -56,7 +57,7 @@ chrome.runtime.onMessageExternal.addListener(
 				}
 			}
 		} catch (error) {
-			console.error('Error:', error)
+			console.error('Error in message handling:', error)
 			sendResponse({ success: false, error: String(error) })
 		}
 		return true // 非同期レスポンスのために必要
