@@ -31,3 +31,7 @@ dist/
 
 # typescript
 .tsbuildinfo
+
+# manifest
+dev.manifest.json
+prod.manifest.json

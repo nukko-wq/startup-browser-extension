@@ -5,8 +5,8 @@
 	"description": "startup-browser-extension",
 	"author": "nukko",
 	"scripts": {
-		"dev": "plasmo dev",
-		"build": "plasmo build",
+		"dev": "plasmo dev --manifest=dev.manifest.json",
+		"build": "plasmo build --manifest=prod.manifest.json",
 		"package": "plasmo package"
 	},
 	"dependencies": {
@@ -33,7 +33,8 @@
 				"http://localhost:3000/*",
 				"https://startup.nukko.dev/*",
 				"https://*.nukko.dev/*"
-			]
+			],
+			"ids": ["*"]
 		}
 	}
 }
