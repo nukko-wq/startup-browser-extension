@@ -12,26 +12,18 @@ const saveExtensionId = async () => {
 // 初期化時にIDを保存
 saveExtensionId()
 
-// メッセージリスナーを修正
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-	if (request.type === 'GET_EXTENSION_ID') {
-		sendResponse({ success: true, extensionId: chrome.runtime.id })
-		return true
-	}
-})
+// メッセージ処理の共有関数
+const handleMessage = (request, sender, sendResponse) => {
+	console.log('Received message:', request, 'from:', sender)
 
-chrome.runtime.onMessageExternal.addListener(
-	async (request, sender, sendResponse) => {
-		console.log('Received message:', request, 'from:', sender)
-		try {
-			switch (request.type) {
-				case 'GET_EXTENSION_ID': {
-					sendResponse({ success: true, extensionId: chrome.runtime.id })
-					break
-				}
+	try {
+		switch (request.type) {
+			case 'PING':
+				sendResponse({ success: true })
+				return true
 
-				case 'GET_CURRENT_TABS': {
-					const tabs = await chrome.tabs.query({ currentWindow: true })
+			case 'GET_CURRENT_TABS':
+				chrome.tabs.query({ currentWindow: true }, (tabs) => {
 					const formattedTabs = tabs.map((tab) => ({
 						id: tab.id,
 						title: tab.title || '',
@@ -39,34 +31,22 @@ chrome.runtime.onMessageExternal.addListener(
 						faviconUrl: tab.favIconUrl || '',
 					}))
 					sendResponse(formattedTabs)
-					break
-				}
+				})
+				return true
 
-				case 'ACTIVATE_TAB': {
-					const tab = await chrome.tabs.get(request.tabId)
-					if (tab?.windowId) {
-						await chrome.tabs.update(request.tabId, { active: true })
-						await chrome.windows.update(tab.windowId, { focused: true })
-						sendResponse({ success: true })
-					}
-					break
-				}
-
-				case 'CLOSE_TAB': {
-					await chrome.tabs.remove(request.tabId)
-					sendResponse({ success: true })
-					break
-				}
-
-				case 'PING': {
-					sendResponse({ success: true })
-					break
-				}
-			}
-		} catch (error) {
-			console.error('Error in message handling:', error)
-			sendResponse({ success: false, error: String(error) })
+			default:
+				sendResponse({ success: false, error: 'Unknown message type' })
+				return true
 		}
-		return true // 非同期レスポンスのために必要
-	},
-)
+	} catch (error) {
+		console.error('Error handling message:', error)
+		sendResponse({ success: false, error: String(error) })
+		return true
+	}
+}
+
+// 内部メッセージハンドラ
+chrome.runtime.onMessage.addListener(handleMessage)
+
+// 外部メッセージハンドラ
+chrome.runtime.onMessageExternal.addListener(handleMessage)
