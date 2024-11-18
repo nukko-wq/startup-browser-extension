@@ -34,6 +34,12 @@ const handleMessage = (request, sender, sendResponse) => {
 				})
 				return true
 
+			case 'CLOSE_TAB':
+				chrome.tabs.remove(request.tabId, () => {
+					sendResponse({ success: true })
+				})
+				return true
+
 			default:
 				sendResponse({ success: false, error: 'Unknown message type' })
 				return true
