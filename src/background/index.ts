@@ -12,14 +12,21 @@ const saveExtensionId = async () => {
 // 初期化時にIDを保存
 saveExtensionId()
 
+// メッセージリスナーを修正
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+	if (request.type === 'GET_EXTENSION_ID') {
+		sendResponse({ success: true, extensionId: chrome.runtime.id })
+		return true
+	}
+})
+
 chrome.runtime.onMessageExternal.addListener(
 	async (request, sender, sendResponse) => {
 		console.log('Received message:', request, 'from:', sender)
 		try {
 			switch (request.type) {
 				case 'GET_EXTENSION_ID': {
-					const extensionId = await storage.get('extensionId')
-					sendResponse({ success: true, extensionId })
+					sendResponse({ success: true, extensionId: chrome.runtime.id })
 					break
 				}
 
