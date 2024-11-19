@@ -33,8 +33,7 @@
 				"http://localhost:3000/*",
 				"https://startup.nukko.dev/*",
 				"https://*.nukko.dev/*"
-			],
-			"ids": ["*"]
+			]
 		}
 	}
 }

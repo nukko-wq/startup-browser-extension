@@ -30,6 +30,7 @@ const handleMessage = (request, sender, sendResponse) => {
 						url: tab.url || '',
 						faviconUrl: tab.favIconUrl || '',
 					}))
+					console.log('Sending tabs:', formattedTabs)
 					sendResponse(formattedTabs)
 				})
 				return true
@@ -37,6 +38,42 @@ const handleMessage = (request, sender, sendResponse) => {
 			case 'CLOSE_TAB':
 				chrome.tabs.remove(request.tabId, () => {
 					sendResponse({ success: true })
+				})
+				return true
+
+			case 'SWITCH_TO_TAB':
+				chrome.tabs.get(request.tabId, (tab) => {
+					if (chrome.runtime.lastError) {
+						console.error(chrome.runtime.lastError)
+						sendResponse({
+							success: false,
+							error: chrome.runtime.lastError.message,
+						})
+						return
+					}
+
+					chrome.windows.update(tab.windowId, { focused: true }, () => {
+						if (chrome.runtime.lastError) {
+							console.error(chrome.runtime.lastError)
+							sendResponse({
+								success: false,
+								error: chrome.runtime.lastError.message,
+							})
+							return
+						}
+
+						chrome.tabs.update(request.tabId, { active: true }, () => {
+							if (chrome.runtime.lastError) {
+								console.error(chrome.runtime.lastError)
+								sendResponse({
+									success: false,
+									error: chrome.runtime.lastError.message,
+								})
+								return
+							}
+							sendResponse({ success: true })
+						})
+					})
 				})
 				return true
 
@@ -56,3 +93,52 @@ chrome.runtime.onMessage.addListener(handleMessage)
 
 // 外部メッセージハンドラ
 chrome.runtime.onMessageExternal.addListener(handleMessage)
+
+// 全てのタブの情報を取得して接続されているクライアントに送信
+const broadcastTabUpdate = async () => {
+	try {
+		const tabs = await chrome.tabs.query({ currentWindow: true })
+		const formattedTabs = tabs.map((tab) => ({
+			id: tab.id,
+			title: tab.title || '',
+			url: tab.url || '',
+			faviconUrl: tab.favIconUrl || '',
+		}))
+
+		// nukko.devドメインのタブを探す
+		const targetTabs = await chrome.tabs.query({
+			url: ['*://*.nukko.dev/*', 'http://localhost:3000/*'],
+		})
+
+		for (const tab of targetTabs) {
+			if (tab.id) {
+				try {
+					await chrome.tabs.sendMessage(tab.id, {
+						type: 'TABS_UPDATED',
+						tabs: formattedTabs,
+					})
+				} catch (error) {
+					console.error('Failed to send message to tab:', tab.id, error)
+				}
+			}
+		}
+	} catch (error) {
+		console.error('Error in broadcastTabUpdate:', error)
+	}
+}
+
+// タブの変更を監視するリスナーを追加（より詳細なログを追加）
+chrome.tabs.onCreated.addListener((tab) => {
+	console.log('Tab created:', tab)
+	setTimeout(broadcastTabUpdate, 500)
+})
+chrome.tabs.onRemoved.addListener((tabId) => {
+	console.log('Tab removed:', tabId)
+	setTimeout(broadcastTabUpdate, 100)
+})
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+	console.log('Tab updated:', tabId, changeInfo)
+	if (changeInfo.status === 'complete') {
+		setTimeout(broadcastTabUpdate, 100)
+	}
+})
