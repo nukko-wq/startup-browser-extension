@@ -24,12 +24,14 @@ const handleMessage = (request, sender, sendResponse) => {
 
 			case 'GET_CURRENT_TABS':
 				chrome.tabs.query({ currentWindow: true }, (tabs) => {
-					const formattedTabs = tabs.map((tab) => ({
-						id: tab.id,
-						title: tab.title || '',
-						url: tab.url || '',
-						faviconUrl: tab.favIconUrl || '',
-					}))
+					const formattedTabs = tabs
+						.filter((tab) => !tab.pinned)
+						.map((tab) => ({
+							id: tab.id,
+							title: tab.title || '',
+							url: tab.url || '',
+							faviconUrl: tab.favIconUrl || '',
+						}))
 					console.log('Sending tabs:', formattedTabs)
 					sendResponse(formattedTabs)
 				})
@@ -98,12 +100,14 @@ chrome.runtime.onMessageExternal.addListener(handleMessage)
 const broadcastTabUpdate = async () => {
 	try {
 		const tabs = await chrome.tabs.query({ currentWindow: true })
-		const formattedTabs = tabs.map((tab) => ({
-			id: tab.id,
-			title: tab.title || '',
-			url: tab.url || '',
-			faviconUrl: tab.favIconUrl || '',
-		}))
+		const formattedTabs = tabs
+			.filter((tab) => !tab.pinned)
+			.map((tab) => ({
+				id: tab.id,
+				title: tab.title || '',
+				url: tab.url || '',
+				faviconUrl: tab.favIconUrl || '',
+			}))
 
 		// nukko.devドメインのタブを探す
 		const targetTabs = await chrome.tabs.query({
