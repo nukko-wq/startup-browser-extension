@@ -79,6 +79,17 @@ const handleMessage = (request, sender, sendResponse) => {
 				})
 				return true
 
+			case 'CLOSE_ALL_TABS':
+				chrome.tabs.query({ pinned: false, currentWindow: true }, (tabs) => {
+					const tabIds = tabs
+						.map((tab) => tab.id)
+						.filter((id): id is number => id !== undefined)
+					chrome.tabs.remove(tabIds, () => {
+						sendResponse({ success: true })
+					})
+				})
+				return true
+
 			default:
 				sendResponse({ success: false, error: 'Unknown message type' })
 				return true
