@@ -90,6 +90,33 @@ const handleMessage = (request, sender, sendResponse) => {
 				})
 				return true
 
+			case 'SORT_TABS_BY_DOMAIN':
+				chrome.tabs.query({ currentWindow: true }, async (tabs) => {
+					const sortedTabs = tabs
+						.filter((tab) => !tab.pinned)
+						.sort((a, b) => {
+							const getDomain = (url: string) => {
+								try {
+									return new URL(url || '').hostname.replace(/^www\./, '')
+								} catch {
+									return ''
+								}
+							}
+							return getDomain(a.url).localeCompare(getDomain(b.url))
+						})
+
+					// タブの順序を更新
+					for (let i = 0; i < sortedTabs.length; i++) {
+						const tab = sortedTabs[i]
+						if (tab.id) {
+							await chrome.tabs.move(tab.id, { index: i })
+						}
+					}
+					sendResponse({ success: true })
+					broadcastTabUpdate()
+				})
+				return true
+
 			default:
 				sendResponse({ success: false, error: 'Unknown message type' })
 				return true
