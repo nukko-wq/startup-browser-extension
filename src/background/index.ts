@@ -142,18 +142,28 @@ const broadcastTabUpdate = async () => {
 	}
 }
 
-// タブの変更を監視するリスナーを追加（より詳細なログを追加）
+// タブの変更を監視するリスナーを追加
 chrome.tabs.onCreated.addListener((tab) => {
 	console.log('Tab created:', tab)
 	setTimeout(broadcastTabUpdate, 500)
 })
+
 chrome.tabs.onRemoved.addListener((tabId) => {
 	console.log('Tab removed:', tabId)
 	setTimeout(broadcastTabUpdate, 100)
 })
+
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 	console.log('Tab updated:', tabId, changeInfo)
 	if (changeInfo.status === 'complete') {
 		setTimeout(broadcastTabUpdate, 100)
 	}
+})
+
+// REQUEST_TABS_UPDATEメッセージを受け取ったときの処理を追加
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+	if (request.type === 'REQUEST_TABS_UPDATE') {
+		broadcastTabUpdate()
+	}
+	return true
 })

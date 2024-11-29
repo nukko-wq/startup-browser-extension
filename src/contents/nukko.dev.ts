@@ -13,10 +13,3 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 	sendResponse({ received: true })
 	return true
 })
-
-// タブの変更を監視
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-	if (changeInfo.status === 'complete') {
-		chrome.runtime.sendMessage({ type: 'REQUEST_TABS_UPDATE' })
-	}
-})
