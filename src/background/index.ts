@@ -12,6 +12,16 @@ const saveExtensionId = async () => {
 // 初期化時にIDを保存
 saveExtensionId()
 
+// URLからドメインを取得するヘルパー関数
+const getDomain = (url: string) => {
+	try {
+		const urlObj = new URL(url)
+		return urlObj.hostname
+	} catch (error) {
+		return url
+	}
+}
+
 // メッセージ処理の共有関数
 const handleMessage = (request, sender, sendResponse) => {
 	console.log('Received message:', request, 'from:', sender)
@@ -87,6 +97,33 @@ const handleMessage = (request, sender, sendResponse) => {
 					chrome.tabs.remove(tabIds, () => {
 						sendResponse({ success: true })
 					})
+				})
+				return true
+
+			case 'SORT_TABS_BY_DOMAIN':
+				chrome.tabs.query({ currentWindow: true }, async (tabs) => {
+					// ピン留めされたタブとそれ以外を分ける
+					const pinnedTabs = tabs.filter((tab) => tab.pinned)
+					const unpinnedTabs = tabs.filter((tab) => !tab.pinned)
+
+					// ドメインでソート
+					const sortedTabs = unpinnedTabs.sort((a, b) => {
+						const domainA = getDomain(a.url || '')
+						const domainB = getDomain(b.url || '')
+						return domainA.localeCompare(domainB)
+					})
+
+					// タブを移動
+					for (let i = 0; i < sortedTabs.length; i++) {
+						const tab = sortedTabs[i]
+						if (tab.id) {
+							await chrome.tabs.move(tab.id, { index: pinnedTabs.length + i })
+						}
+					}
+
+					// タブリストを更新
+					broadcastTabUpdate()
+					sendResponse({ success: true })
 				})
 				return true
 
