@@ -125,6 +125,26 @@ const handleMessage = (request, sender, sendResponse) => {
 				})
 				return true
 
+			case 'FIND_TAB':
+				chrome.tabs.query({ currentWindow: true }, (tabs) => {
+					// 完全一致で検索
+					const tab = tabs.find((tab) => tab.url === request.url)
+					sendResponse({ tabId: tab?.id })
+				})
+				return true
+
+			case 'CREATE_TAB':
+				chrome.tabs.create(
+					{
+						url: request.url,
+						active: true, // 作成したタブをアクティブにする
+					},
+					(tab) => {
+						sendResponse({ success: true, tabId: tab.id })
+					},
+				)
+				return true
+
 			default:
 				sendResponse({ success: false, error: 'Unknown message type' })
 				return true
