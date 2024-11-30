@@ -102,11 +102,9 @@ const handleMessage = (request, sender, sendResponse) => {
 
 			case 'SORT_TABS_BY_DOMAIN':
 				chrome.tabs.query({ currentWindow: true }, async (tabs) => {
-					// ピン留めされたタブとそれ以外を分ける
 					const pinnedTabs = tabs.filter((tab) => tab.pinned)
 					const unpinnedTabs = tabs.filter((tab) => !tab.pinned)
 
-					// ドメインでソート
 					const sortedTabs = unpinnedTabs.sort((a, b) => {
 						const domainA = getDomain(a.url || '')
 						const domainB = getDomain(b.url || '')
@@ -121,8 +119,8 @@ const handleMessage = (request, sender, sendResponse) => {
 						}
 					}
 
-					// タブリストを更新
-					broadcastTabUpdate()
+					// 即座にタブリストを更新
+					await broadcastTabUpdate()
 					sendResponse({ success: true })
 				})
 				return true
@@ -157,7 +155,12 @@ const broadcastTabUpdate = async () => {
 				faviconUrl: tab.favIconUrl || '',
 			}))
 
-		// nukko.devドメインのタブを探す
+		// タブの移動イベントを監視
+		chrome.tabs.onMoved.addListener((tabId, moveInfo) => {
+			setTimeout(broadcastTabUpdate, 100)
+		})
+
+		// 対象のタブを探す
 		const targetTabs = await chrome.tabs.query({
 			url: ['*://*.nukko.dev/*', 'http://localhost:3000/*'],
 		})
@@ -170,7 +173,7 @@ const broadcastTabUpdate = async () => {
 						tabs: formattedTabs,
 					})
 				} catch (error) {
-					console.error('Failed to send message to tab:', tab.id, error)
+					console.debug(`Tab ${tab.id} not ready:`, error)
 				}
 			}
 		}
