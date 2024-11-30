@@ -5,6 +5,8 @@ export const config: PlasmoCSConfig = {
 }
 
 let isListenerAttached = false
+let reconnectAttempts = 0
+const MAX_RECONNECT_ATTEMPTS = 3
 
 function attachMessageListener() {
 	if (isListenerAttached) return
@@ -27,10 +29,16 @@ function attachMessageListener() {
 		})
 
 		isListenerAttached = true
+		reconnectAttempts = 0
 	} catch (error) {
 		if (error.message === 'Extension context invalidated.') {
-			console.log('Extension was reloaded, content script needs refresh')
-			setTimeout(attachMessageListener, 1000)
+			console.log('Extension was reloaded, attempting to reconnect...')
+			if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+				reconnectAttempts++
+				setTimeout(attachMessageListener, 1000 * reconnectAttempts)
+			} else {
+				console.error('Max reconnection attempts reached')
+			}
 		} else {
 			console.error('Error in content script:', error)
 		}
@@ -41,6 +49,7 @@ attachMessageListener()
 
 document.addEventListener('visibilitychange', () => {
 	if (document.visibilityState === 'visible') {
+		isListenerAttached = false
 		attachMessageListener()
 	}
 })
