@@ -5,8 +5,8 @@
 	"description": "startup-browser-extension",
 	"author": "nukko",
 	"scripts": {
-		"dev": "plasmo dev --manifest=dev.manifest.json",
-		"build": "plasmo build --manifest=prod.manifest.json",
+		"dev": "plasmo dev",
+		"build": "plasmo build",
 		"package": "plasmo package"
 	},
 	"dependencies": {
