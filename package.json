@@ -29,11 +29,7 @@
 		"host_permissions": ["https://*/*", "http://*/*"],
 		"permissions": ["tabs", "storage"],
 		"externally_connectable": {
-			"matches": [
-				"http://localhost:3000/*",
-				"https://startup.nukko.dev/*",
-				"https://*.nukko.dev/*"
-			]
+			"matches": ["http://localhost:3000/*", "https://startup.nukko.dev/*"]
 		}
 	}
 }
