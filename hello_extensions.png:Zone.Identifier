@@ -1,0 +1,4 @@
+[ZoneTransfer]
+ZoneId=3
+ReferrerUrl=https://github.com/GoogleChrome/chrome-extensions-samples/blob/main/functional-samples/tutorial.hello-world/hello_extensions.png
+HostUrl=https://raw.githubusercontent.com/GoogleChrome/chrome-extensions-samples/refs/heads/main/functional-samples/tutorial.hello-world/hello_extensions.png

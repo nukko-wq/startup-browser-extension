@@ -1,0 +1,14 @@
+{
+	"manifest_version": 3,
+	"name": "Startup Tab Manager",
+	"version": "1.0",
+	"description": "タブ管理拡張機能",
+	"permissions": ["tabs", "activeTab"],
+	"background": {
+		"service_worker": "background.js",
+		"type": "module"
+	},
+	"externally_connectable": {
+		"matches": ["http://localhost:3000/*", "https://startup.nukko.dev/*"]
+	}
+}
