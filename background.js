@@ -48,6 +48,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 					return
 				}
 
+				case 'CLOSE_ALL_TABS': {
+					const currentTab = await chrome.tabs.query({
+						active: true,
+						currentWindow: true,
+					})
+					const allTabs = await chrome.tabs.query({
+						currentWindow: true,
+						pinned: false,
+					})
+
+					const tabsToClose = allTabs.filter(
+						(tab) => tab.id !== currentTab[0].id,
+					)
+					if (tabsToClose.length > 0) {
+						await chrome.tabs.remove(tabsToClose.map((tab) => tab.id))
+					}
+					sendResponse({ success: true })
+					return
+				}
+
 				default:
 					sendResponse({ success: false, error: 'Unknown message type' })
 					return
