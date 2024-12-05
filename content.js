@@ -11,7 +11,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // Webアプリからのメッセージをbackground.jsに転送
 window.addEventListener('message', (event) => {
-	console.log('************Received message:', event.data)
 	// 同じオリジンからのメッセージのみを処理
 	if (event.source !== window) return
 
@@ -19,36 +18,38 @@ window.addEventListener('message', (event) => {
 	if (event.data.source === 'startup-extension') return
 
 	try {
-		// 拡張機能のIDはWebアプリから送信されるメッセージに含める
-		const extensionId = event.data.extensionId
-		if (!extensionId) {
-			throw new Error('Extension ID is missing')
-		}
+		// background.jsからのメッセージの場合はextensionIdチェックをスキップ
+		if (event.data.source === 'webapp') {
+			const extensionId = event.data.extensionId
+			if (!extensionId) {
+				throw new Error('Extension ID is missing')
+			}
 
-		chrome.runtime
-			.sendMessage(extensionId, event.data)
-			.then((response) => {
-				if (response) {
+			chrome.runtime
+				.sendMessage(extensionId, event.data)
+				.then((response) => {
+					if (response) {
+						window.postMessage(
+							{
+								source: 'startup-extension',
+								...response,
+							},
+							'*',
+						)
+					}
+				})
+				.catch((error) => {
+					console.error('Error sending message to background:', error)
 					window.postMessage(
 						{
 							source: 'startup-extension',
-							...response,
+							success: false,
+							error: error.message,
 						},
 						'*',
 					)
-				}
-			})
-			.catch((error) => {
-				console.error('Error sending message to background:', error)
-				window.postMessage(
-					{
-						source: 'startup-extension',
-						success: false,
-						error: error.message,
-					},
-					'*',
-				)
-			})
+				})
+		}
 	} catch (error) {
 		console.error('Error in message handling:', error)
 	}
