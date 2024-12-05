@@ -9,9 +9,10 @@ function formatTab(tab) {
 	}
 }
 
-// 全てのタブ情報を取得
+// 現在のWindowのタブ情報を取得
 async function getAllTabs() {
-	const tabs = await chrome.tabs.query({})
+	const currentWindow = await chrome.windows.getCurrent()
+	const tabs = await chrome.tabs.query({ windowId: currentWindow.id })
 	return tabs.map(formatTab)
 }
 

@@ -3,7 +3,7 @@
 	"name": "Startup Tab Manager",
 	"version": "1.0",
 	"description": "タブ管理拡張機能",
-	"permissions": ["tabs", "activeTab"],
+	"permissions": ["tabs", "activeTab", "windows"],
 	"background": {
 		"service_worker": "background.js",
 		"type": "module"
