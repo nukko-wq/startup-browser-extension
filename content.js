@@ -11,6 +11,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // Webアプリからのメッセージをbackground.jsに転送
 window.addEventListener('message', (event) => {
+	console.log('************Received message:', event.data)
 	// 同じオリジンからのメッセージのみを処理
 	if (event.source !== window) return
 
