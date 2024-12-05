@@ -19,45 +19,51 @@ async function getAllTabs() {
 	return tabs.map(formatTab)
 }
 
-// メッセージリスナーの設定
+// content.jsからのメッセージを処理
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+	;(async () => {
+		try {
+			switch (message.type) {
+				case 'REQUEST_TABS_UPDATE': {
+					const tabs = await getAllTabs()
+					sendResponse({ success: true, tabs })
+					return
+				}
+
+				case 'SWITCH_TO_TAB': {
+					await chrome.tabs.update(message.tabId, { active: true })
+					sendResponse({ success: true })
+					return
+				}
+
+				case 'CLOSE_TAB': {
+					await chrome.tabs.remove(message.tabId)
+					sendResponse({ success: true })
+					return
+				}
+
+				case 'SET_TOKEN': {
+					await chrome.storage.local.set({ token: message.token })
+					sendResponse({ success: true })
+					return
+				}
+
+				default:
+					sendResponse({ success: false, error: 'Unknown message type' })
+					return
+			}
+		} catch (error) {
+			sendResponse({ success: false, error: error.message })
+		}
+	})()
+	return true
+})
+
+// 外部（Webアプリ）からのメッセージを処理
 chrome.runtime.onMessageExternal.addListener(
 	(message, sender, sendResponse) => {
-		;(async () => {
-			try {
-				switch (message.type) {
-					case 'REQUEST_TABS_UPDATE': {
-						const tabs = await getAllTabs()
-						sendResponse({ success: true, tabs })
-						return
-					}
-
-					case 'SWITCH_TO_TAB': {
-						await chrome.tabs.update(message.tabId, { active: true })
-						sendResponse({ success: true })
-						return
-					}
-
-					case 'CLOSE_TAB': {
-						await chrome.tabs.remove(message.tabId)
-						sendResponse({ success: true })
-						return
-					}
-
-					case 'SET_TOKEN': {
-						// トークンを保存
-						await chrome.storage.local.set({ token: message.token })
-						sendResponse({ success: true })
-						return
-					}
-
-					default:
-						sendResponse({ success: false, error: 'Unknown message type' })
-						return
-				}
-			} catch (error) {
-				sendResponse({ success: false, error: error.message })
-			}
-		})()
+		// 同じ処理を実行
+		chrome.runtime.onMessage.addListener(message, sender, sendResponse)
 		return true
 	},
 )
