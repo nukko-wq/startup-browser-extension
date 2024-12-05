@@ -18,8 +18,14 @@ window.addEventListener('message', (event) => {
 	if (event.data.source === 'startup-extension') return
 
 	try {
+		// 拡張機能のIDはWebアプリから送信されるメッセージに含める
+		const extensionId = event.data.extensionId
+		if (!extensionId) {
+			throw new Error('Extension ID is missing')
+		}
+
 		chrome.runtime
-			.sendMessage(process.env.EXTENSION_ID, event.data)
+			.sendMessage(extensionId, event.data)
 			.then((response) => {
 				if (response) {
 					window.postMessage(
