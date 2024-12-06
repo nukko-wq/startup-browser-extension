@@ -66,34 +66,43 @@ async function handleMessage(message, sendResponse) {
 			}
 
 			case 'SORT_TABS_BY_DOMAIN': {
-				const allTabs = await chrome.tabs.query({
-					currentWindow: true,
-					pinned: false,
-				})
+				try {
+					const allTabs = await chrome.tabs.query({
+						currentWindow: true,
+						pinned: false,
+					})
 
-				// URLからドメインを取得する関数
-				const getDomain = (url) => {
-					try {
-						return new URL(url).hostname
-					} catch {
-						return url
+					// URLからドメインを取得する関数
+					const getDomain = (url) => {
+						try {
+							return new URL(url).hostname
+						} catch {
+							return url
+						}
 					}
+
+					// ドメインでソート
+					const sortedTabs = allTabs.sort((a, b) => {
+						const domainA = getDomain(a.url)
+						const domainB = getDomain(b.url)
+						return domainA.localeCompare(domainB)
+					})
+
+					// タブの位置を順次更新
+					const movePromises = sortedTabs.map((tab, index) =>
+						chrome.tabs.move(tab.id, { index }),
+					)
+					await Promise.all(movePromises)
+
+					sendResponse({ success: true })
+				} catch (error) {
+					console.error('Error in SORT_TABS_BY_DOMAIN:', error)
+					sendResponse({
+						success: false,
+						error: error.message || 'Failed to sort tabs',
+					})
 				}
-
-				// ドメインでソート
-				const sortedTabs = allTabs.sort((a, b) => {
-					const domainA = getDomain(a.url)
-					const domainB = getDomain(b.url)
-					return domainA.localeCompare(domainB)
-				})
-
-				// タブの位置を更新
-				for (let i = 0; i < sortedTabs.length; i++) {
-					await chrome.tabs.move(sortedTabs[i].id, { index: i })
-				}
-
-				sendResponse({ success: true })
-				return
+				return true
 			}
 
 			default:
@@ -107,19 +116,27 @@ async function handleMessage(message, sendResponse) {
 
 // 内部メッセージ（content scriptから）を処理
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-	;(async () => {
-		await handleMessage(message, sendResponse)
-	})()
-	return true
+	handleMessage(message, sendResponse).catch((error) => {
+		console.error('Error handling message:', error)
+		sendResponse({
+			success: false,
+			error: error.message || 'Unknown error occurred',
+		})
+	})
+	return true // 非同期レスポンスを使用することを示す
 })
 
 // 外部メッセージ（Webアプリから直接）を処理
 chrome.runtime.onMessageExternal.addListener(
 	(message, sender, sendResponse) => {
-		;(async () => {
-			await handleMessage(message, sendResponse)
-		})()
-		return true
+		handleMessage(message, sendResponse).catch((error) => {
+			console.error('Error handling external message:', error)
+			sendResponse({
+				success: false,
+				error: error.message || 'Unknown error occurred',
+			})
+		})
+		return true // 非同期レスポンスを使用することを示す
 	},
 )
 
