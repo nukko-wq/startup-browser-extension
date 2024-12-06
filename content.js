@@ -16,36 +16,81 @@ window.addEventListener('message', (event) => {
 
 	try {
 		if (event.data.source === 'webapp') {
-			// extensionIdがある場合は外部メッセージング、ない場合は内部メッセージングを使用
-			const messagePromise = event.data.extensionId
-				? chrome.runtime.sendMessage(event.data.extensionId, event.data)
-				: chrome.runtime.sendMessage(event.data)
+			// 拡張機能のコンテキストが有効かチェック
+			if (!chrome.runtime?.id) {
+				window.postMessage(
+					{
+						source: 'startup-extension',
+						success: false,
+						error: 'Extension context invalid',
+					},
+					'*',
+				)
+				return
+			}
 
-			messagePromise
-				.then((response) => {
-					if (response) {
+			// メッセージ送信を試みる
+			const sendMessageWithRetry = async (retryCount = 0) => {
+				try {
+					const response = await chrome.runtime.sendMessage(event.data)
+					window.postMessage(
+						{
+							source: 'startup-extension',
+							...response,
+						},
+						'*',
+					)
+				} catch (error) {
+					if (
+						error.message === 'Extension context invalidated' &&
+						retryCount < 3
+					) {
+						// 少し待ってから再試行
+						setTimeout(() => sendMessageWithRetry(retryCount + 1), 1000)
+					} else {
+						console.error('Error sending message to background:', error)
 						window.postMessage(
 							{
 								source: 'startup-extension',
-								...response,
+								success: false,
+								error: error.message,
 							},
 							'*',
 						)
 					}
-				})
-				.catch((error) => {
-					console.error('Error sending message to background:', error)
-					window.postMessage(
-						{
-							source: 'startup-extension',
-							success: false,
-							error: error.message,
-						},
-						'*',
-					)
-				})
+				}
+			}
+
+			sendMessageWithRetry()
 		}
 	} catch (error) {
 		console.error('Error in message handling:', error)
+		window.postMessage(
+			{
+				source: 'startup-extension',
+				success: false,
+				error: `Extension error: ${error.message}`,
+			},
+			'*',
+		)
 	}
 })
+
+// 拡張機能のコンテキストが無効になった時の検出
+let lastCheckTime = Date.now()
+const checkExtensionContext = () => {
+	if (!chrome.runtime?.id) {
+		window.postMessage(
+			{
+				source: 'startup-extension',
+				success: false,
+				error: 'Extension context invalid',
+			},
+			'*',
+		)
+	}
+	lastCheckTime = Date.now()
+}
+
+// 定期的にコンテキストをチェック
+setInterval(checkExtensionContext, 5000)
