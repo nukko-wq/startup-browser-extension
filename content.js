@@ -11,33 +11,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // Webアプリからのメッセージをbackground.jsに転送
 window.addEventListener('message', (event) => {
-	// 同じオリジンからのメッセージのみを処理
 	if (event.source !== window) return
-
-	// startup-extensionからのメッセージは無視（無限ループを防ぐ）
 	if (event.data.source === 'startup-extension') return
 
 	try {
-		// background.jsからのメッセージの場合はextensionIdチェックをスキップ
 		if (event.data.source === 'webapp') {
-			const extensionId = event.data.extensionId
-			if (!extensionId) {
-				throw new Error('Extension ID is missing')
-			}
+			// extensionIdがある場合は外部メッセージング、ない場合は内部メッセージングを使用
+			const messagePromise = event.data.extensionId
+				? chrome.runtime.sendMessage(event.data.extensionId, event.data)
+				: chrome.runtime.sendMessage(event.data)
 
-			if (!chrome.runtime) {
-				throw new Error('Chrome runtime not available')
-			}
-			// メッセージ送信前の追加チェック
-			if (
-				typeof extensionId !== 'string' ||
-				!extensionId.match(/^[a-z]{32}$/)
-			) {
-				throw new Error('Invalid extension ID format')
-			}
-
-			chrome.runtime
-				.sendMessage(extensionId, event.data)
+			messagePromise
 				.then((response) => {
 					if (response) {
 						window.postMessage(

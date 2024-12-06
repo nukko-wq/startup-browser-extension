@@ -19,186 +19,105 @@ async function getAllTabs() {
 	return tabs.map(formatTab)
 }
 
-// content.jsからのメッセージを処理
+// メッセージ処理を共通化する関数
+async function handleMessage(message, sendResponse) {
+	try {
+		switch (message.type) {
+			case 'REQUEST_TABS_UPDATE': {
+				const tabs = await getAllTabs()
+				sendResponse({ success: true, tabs })
+				return
+			}
+
+			case 'SWITCH_TO_TAB': {
+				await chrome.tabs.update(message.tabId, { active: true })
+				sendResponse({ success: true })
+				return
+			}
+
+			case 'CLOSE_TAB': {
+				await chrome.tabs.remove(message.tabId)
+				sendResponse({ success: true })
+				return
+			}
+
+			case 'SET_TOKEN': {
+				await chrome.storage.local.set({ token: message.token })
+				sendResponse({ success: true })
+				return
+			}
+
+			case 'CLOSE_ALL_TABS': {
+				const currentTab = await chrome.tabs.query({
+					active: true,
+					currentWindow: true,
+				})
+				const allTabs = await chrome.tabs.query({
+					currentWindow: true,
+					pinned: false,
+				})
+
+				const tabsToClose = allTabs.filter((tab) => tab.id !== currentTab[0].id)
+				if (tabsToClose.length > 0) {
+					await chrome.tabs.remove(tabsToClose.map((tab) => tab.id))
+				}
+				sendResponse({ success: true })
+				return
+			}
+
+			case 'SORT_TABS_BY_DOMAIN': {
+				const allTabs = await chrome.tabs.query({
+					currentWindow: true,
+					pinned: false,
+				})
+
+				// URLからドメインを取得する関数
+				const getDomain = (url) => {
+					try {
+						return new URL(url).hostname
+					} catch {
+						return url
+					}
+				}
+
+				// ドメインでソート
+				const sortedTabs = allTabs.sort((a, b) => {
+					const domainA = getDomain(a.url)
+					const domainB = getDomain(b.url)
+					return domainA.localeCompare(domainB)
+				})
+
+				// タブの位置を更新
+				for (let i = 0; i < sortedTabs.length; i++) {
+					await chrome.tabs.move(sortedTabs[i].id, { index: i })
+				}
+
+				sendResponse({ success: true })
+				return
+			}
+
+			default:
+				sendResponse({ success: false, error: 'Unknown message type' })
+				return
+		}
+	} catch (error) {
+		sendResponse({ success: false, error: error.message })
+	}
+}
+
+// 内部メッセージ（content scriptから）を処理
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 	;(async () => {
-		try {
-			switch (message.type) {
-				case 'REQUEST_TABS_UPDATE': {
-					const tabs = await getAllTabs()
-					sendResponse({ success: true, tabs })
-					return
-				}
-
-				case 'SWITCH_TO_TAB': {
-					await chrome.tabs.update(message.tabId, { active: true })
-					sendResponse({ success: true })
-					return
-				}
-
-				case 'CLOSE_TAB': {
-					await chrome.tabs.remove(message.tabId)
-					sendResponse({ success: true })
-					return
-				}
-
-				case 'SET_TOKEN': {
-					await chrome.storage.local.set({ token: message.token })
-					sendResponse({ success: true })
-					return
-				}
-
-				case 'CLOSE_ALL_TABS': {
-					const currentTab = await chrome.tabs.query({
-						active: true,
-						currentWindow: true,
-					})
-					const allTabs = await chrome.tabs.query({
-						currentWindow: true,
-						pinned: false,
-					})
-
-					const tabsToClose = allTabs.filter(
-						(tab) => tab.id !== currentTab[0].id,
-					)
-					if (tabsToClose.length > 0) {
-						await chrome.tabs.remove(tabsToClose.map((tab) => tab.id))
-					}
-					sendResponse({ success: true })
-					return
-				}
-
-				case 'SORT_TABS_BY_DOMAIN': {
-					const allTabs = await chrome.tabs.query({
-						currentWindow: true,
-						pinned: false,
-					})
-
-					// URLからドメインを取得する関数
-					const getDomain = (url) => {
-						try {
-							return new URL(url).hostname
-						} catch {
-							return url
-						}
-					}
-
-					// ドメインでソート
-					const sortedTabs = allTabs.sort((a, b) => {
-						const domainA = getDomain(a.url)
-						const domainB = getDomain(b.url)
-						return domainA.localeCompare(domainB)
-					})
-
-					// タブの位置を更新
-					for (let i = 0; i < sortedTabs.length; i++) {
-						await chrome.tabs.move(sortedTabs[i].id, { index: i })
-					}
-
-					sendResponse({ success: true })
-					return
-				}
-
-				default:
-					sendResponse({ success: false, error: 'Unknown message type' })
-					return
-			}
-		} catch (error) {
-			sendResponse({ success: false, error: error.message })
-		}
+		await handleMessage(message, sendResponse)
 	})()
 	return true
 })
 
-// 外部（Webアプリ）からのメッセージを処理
+// 外部メッセージ（Webアプリから直接）を処理
 chrome.runtime.onMessageExternal.addListener(
 	(message, sender, sendResponse) => {
-		// onMessage.addListenerではなく、直接メッセージを処理する
 		;(async () => {
-			try {
-				switch (message.type) {
-					case 'REQUEST_TABS_UPDATE': {
-						const tabs = await getAllTabs()
-						sendResponse({ success: true, tabs })
-						return
-					}
-
-					case 'SWITCH_TO_TAB': {
-						await chrome.tabs.update(message.tabId, { active: true })
-						sendResponse({ success: true })
-						return
-					}
-
-					case 'CLOSE_TAB': {
-						await chrome.tabs.remove(message.tabId)
-						sendResponse({ success: true })
-						return
-					}
-
-					case 'SET_TOKEN': {
-						await chrome.storage.local.set({ token: message.token })
-						sendResponse({ success: true })
-						return
-					}
-
-					case 'CLOSE_ALL_TABS': {
-						const currentTab = await chrome.tabs.query({
-							active: true,
-							currentWindow: true,
-						})
-						const allTabs = await chrome.tabs.query({
-							currentWindow: true,
-							pinned: false,
-						})
-
-						const tabsToClose = allTabs.filter(
-							(tab) => tab.id !== currentTab[0].id,
-						)
-						if (tabsToClose.length > 0) {
-							await chrome.tabs.remove(tabsToClose.map((tab) => tab.id))
-						}
-						sendResponse({ success: true })
-						return
-					}
-
-					case 'SORT_TABS_BY_DOMAIN': {
-						const allTabs = await chrome.tabs.query({
-							currentWindow: true,
-							pinned: false,
-						})
-
-						// URLからドメインを取得する関数
-						const getDomain = (url) => {
-							try {
-								return new URL(url).hostname
-							} catch {
-								return url
-							}
-						}
-
-						// ドメインでソート
-						const sortedTabs = allTabs.sort((a, b) => {
-							const domainA = getDomain(a.url)
-							const domainB = getDomain(b.url)
-							return domainA.localeCompare(domainB)
-						})
-
-						// タブの位置を更新
-						for (let i = 0; i < sortedTabs.length; i++) {
-							await chrome.tabs.move(sortedTabs[i].id, { index: i })
-						}
-
-						sendResponse({ success: true })
-						return
-					}
-
-					default:
-						sendResponse({ success: false, error: 'Unknown message type' })
-						return
-				}
-			} catch (error) {
-				sendResponse({ success: false, error: error.message })
-			}
+			await handleMessage(message, sendResponse)
 		})()
 		return true
 	},
