@@ -3,7 +3,14 @@
 	"name": "Startup Tab Manager",
 	"version": "1.0",
 	"description": "タブ管理拡張機能",
-	"permissions": ["tabs", "activeTab", "windows", "scripting", "storage"],
+	"permissions": [
+		"tabs",
+		"activeTab",
+		"windows",
+		"scripting",
+		"storage",
+		"webNavigation"
+	],
 	"host_permissions": [
 		"http://localhost:3000/*",
 		"https://startup.nukko.dev/*"
