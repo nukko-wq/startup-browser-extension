@@ -25,6 +25,17 @@ window.addEventListener('message', (event) => {
 				throw new Error('Extension ID is missing')
 			}
 
+			if (!chrome.runtime) {
+				throw new Error('Chrome runtime not available')
+			}
+			// メッセージ送信前の追加チェック
+			if (
+				typeof extensionId !== 'string' ||
+				!extensionId.match(/^[a-z]{32}$/)
+			) {
+				throw new Error('Invalid extension ID format')
+			}
+
 			chrome.runtime
 				.sendMessage(extensionId, event.data)
 				.then((response) => {
