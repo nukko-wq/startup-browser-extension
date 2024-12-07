@@ -105,6 +105,44 @@ async function handleMessage(message, sendResponse) {
 				return true
 			}
 
+			case 'FIND_OR_CREATE_STARTUP_TAB': {
+				// 既存のStartupタブを探す
+				const tabs = await chrome.tabs.query({
+					url: ['http://localhost:3000/*', 'https://startup.nukko.dev/*'],
+				})
+
+				if (tabs.length > 0) {
+					// 既存のタブがある場合はそれをアクティブにする
+					await chrome.tabs.update(tabs[0].id, { active: true })
+					sendResponse({ success: true, tabId: tabs[0].id })
+				} else {
+					// 新しいタブを作成
+					const newTab = await chrome.tabs.create({
+						url: 'http://localhost:3000',
+						active: true,
+					})
+					sendResponse({ success: true, tabId: newTab.id })
+				}
+				return
+			}
+
+			case 'SHOW_SPACE_LIST_OVERLAY': {
+				// content scriptにオーバーレイ表示を指示
+				const tabs = await chrome.tabs.query({
+					active: true,
+					currentWindow: true,
+				})
+				if (tabs[0]) {
+					await chrome.tabs.sendMessage(tabs[0].id, {
+						type: 'SHOW_SPACE_LIST_OVERLAY',
+					})
+					sendResponse({ success: true })
+				} else {
+					sendResponse({ success: false, error: 'No active tab found' })
+				}
+				return
+			}
+
 			default:
 				sendResponse({ success: false, error: 'Unknown message type' })
 				return
@@ -188,3 +226,19 @@ async function notifyTabsUpdate() {
 		},
 	)
 }
+
+// キーボードショートカットの登録
+chrome.commands.onCommand.addListener(async (command) => {
+	if (command === 'show_space_list') {
+		try {
+			// まずStartupタブを表示
+			await handleMessage({ type: 'FIND_OR_CREATE_STARTUP_TAB' }, () => {})
+			// 少し待ってからオーバーレイを表示
+			setTimeout(async () => {
+				await handleMessage({ type: 'SHOW_SPACE_LIST_OVERLAY' }, () => {})
+			}, 500)
+		} catch (error) {
+			console.error('Error showing space list:', error)
+		}
+	}
+})

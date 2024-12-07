@@ -27,5 +27,13 @@
 	],
 	"externally_connectable": {
 		"matches": ["http://localhost:3000/*", "https://startup.nukko.dev/*"]
+	},
+	"commands": {
+		"show_space_list": {
+			"suggested_key": {
+				"default": "Alt+A"
+			},
+			"description": "Show space list overlay"
+		}
 	}
 }

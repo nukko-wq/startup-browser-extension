@@ -94,3 +94,18 @@ const checkExtensionContext = () => {
 
 // 定期的にコンテキストをチェック
 setInterval(checkExtensionContext, 5000)
+
+// background.jsからのメッセージを処理
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+	if (message.type === 'SHOW_SPACE_LIST_OVERLAY') {
+		window.postMessage(
+			{
+				source: 'startup-extension',
+				type: 'SHOW_SPACE_LIST_OVERLAY',
+			},
+			'*',
+		)
+		sendResponse({ success: true })
+	}
+	return true
+})
