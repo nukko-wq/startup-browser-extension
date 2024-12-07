@@ -108,7 +108,7 @@ async function handleMessage(message, sendResponse) {
 			case 'FIND_OR_CREATE_STARTUP_TAB': {
 				// 既存のStartupタブを探す
 				const tabs = await chrome.tabs.query({
-					url: ['http://localhost:3000/*', 'https://startup.nukko.dev/*'],
+					url: ['http://localhost:3000/*'],
 				})
 
 				if (tabs.length > 0) {
@@ -200,7 +200,7 @@ async function notifyTabsUpdate() {
 	const tabs = await getAllTabs()
 	// 登録されているWebアプリにメッセージを送信
 	chrome.tabs.query(
-		{ url: ['http://localhost:3000/*', 'https://startup.nukko.dev/*'] },
+		{ url: ['http://localhost:3000/*'] },
 		async (matchingTabs) => {
 			for (const tab of matchingTabs) {
 				try {
