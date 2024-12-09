@@ -198,27 +198,29 @@ chrome.tabs.onRemoved.addListener(async () => {
 // Webアプリへの通知を共通化
 async function notifyTabsUpdate() {
 	const tabs = await getAllTabs()
-	// 登録されているWebアプリにメッセージを送信
 	chrome.tabs.query(
 		{ url: ['http://localhost:3000/*'] },
 		async (matchingTabs) => {
 			for (const tab of matchingTabs) {
 				try {
-					// content scriptが読み込まれているか確認
-					await chrome.scripting.executeScript({
-						target: { tabId: tab.id },
-						func: (tabsData) => {
-							window.postMessage(
-								{
-									source: 'startup-extension',
-									type: 'TABS_UPDATED',
-									tabs: tabsData,
-								},
-								'*',
-							)
-						},
-						args: [tabs],
-					})
+					// タブの状態をチェック
+					const tabInfo = await chrome.tabs.get(tab.id)
+					if (!tabInfo.url.startsWith('chrome-error://')) {
+						await chrome.scripting.executeScript({
+							target: { tabId: tab.id },
+							func: (tabsData) => {
+								window.postMessage(
+									{
+										source: 'startup-extension',
+										type: 'TABS_UPDATED',
+										tabs: tabsData,
+									},
+									'*',
+								)
+							},
+							args: [tabs],
+						})
+					}
 				} catch (error) {
 					console.error('Error executing script:', error)
 				}
