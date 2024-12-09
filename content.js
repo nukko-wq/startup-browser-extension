@@ -18,6 +18,7 @@ window.addEventListener('message', (event) => {
 		if (event.data.source === 'webapp') {
 			// 拡張機能のコンテキストが有効かチェック
 			if (!chrome.runtime?.id) {
+				console.log('Extension context invalid')
 				window.postMessage(
 					{
 						source: 'startup-extension',
