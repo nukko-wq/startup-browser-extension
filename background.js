@@ -178,56 +178,46 @@ chrome.runtime.onMessageExternal.addListener(
 	},
 )
 
-// タブの変更を監視し、Webアプリに通知
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+// Webアプリへの通知を共通化
+async function notifyTabsUpdate() {
+	try {
+		const tabs = await getAllTabs()
+		const matchingTabs = await chrome.tabs.query({
+			url: ['http://localhost:3000/*'],
+		})
+
+		for (const tab of matchingTabs) {
+			try {
+				const tabInfo = await chrome.tabs.get(tab.id)
+				if (!tabInfo.url.startsWith('chrome-error://')) {
+					await chrome.tabs.sendMessage(tab.id, {
+						type: 'TABS_UPDATED',
+						tabs: tabs,
+					})
+				}
+			} catch (error) {
+				console.error('Error sending tab update:', error)
+			}
+		}
+	} catch (error) {
+		console.error('Error in notifyTabsUpdate:', error)
+	}
+}
+
+// タブの変更を監視
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 	if (changeInfo.status === 'complete') {
-		await notifyTabsUpdate()
+		notifyTabsUpdate()
 	}
 })
 
-// タブの移動を監視し、Webアプリに通知
-chrome.tabs.onMoved.addListener(async () => {
-	await notifyTabsUpdate()
+chrome.tabs.onRemoved.addListener(() => {
+	notifyTabsUpdate()
 })
 
-// タブの削除を監視し、Webアプリに通知
-chrome.tabs.onRemoved.addListener(async () => {
-	await notifyTabsUpdate()
+chrome.tabs.onMoved.addListener(() => {
+	notifyTabsUpdate()
 })
-
-// Webアプリへの通知を共通化
-async function notifyTabsUpdate() {
-	const tabs = await getAllTabs()
-	chrome.tabs.query(
-		{ url: ['http://localhost:3000/*'] },
-		async (matchingTabs) => {
-			for (const tab of matchingTabs) {
-				try {
-					// タブの状態をチェック
-					const tabInfo = await chrome.tabs.get(tab.id)
-					if (!tabInfo.url.startsWith('chrome-error://')) {
-						await chrome.scripting.executeScript({
-							target: { tabId: tab.id },
-							func: (tabsData) => {
-								window.postMessage(
-									{
-										source: 'startup-extension',
-										type: 'TABS_UPDATED',
-										tabs: tabsData,
-									},
-									'*',
-								)
-							},
-							args: [tabs],
-						})
-					}
-				} catch (error) {
-					console.error('Error executing script:', error)
-				}
-			}
-		},
-	)
-}
 
 // キーボードショートカットの登録
 chrome.commands.onCommand.addListener(async (command) => {

@@ -1,7 +1,19 @@
 // background.jsからのメッセージをWebアプリに転送
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 	try {
-		window.postMessage(message, '*')
+		// TABS_UPDATEDメッセージを確実にWebアプリに転送
+		if (message.type === 'TABS_UPDATED') {
+			window.postMessage(
+				{
+					source: 'startup-extension',
+					type: 'TABS_UPDATED',
+					tabs: message.tabs,
+				},
+				'*',
+			)
+		} else {
+			window.postMessage(message, '*')
+		}
 		sendResponse({ received: true })
 	} catch (error) {
 		console.error('Error posting message:', error)
@@ -46,7 +58,7 @@ window.addEventListener('message', (event) => {
 						error.message === 'Extension context invalidated' &&
 						retryCount < 3
 					) {
-						// 少し待ってから再試行
+						// 少し���ってから再試行
 						setTimeout(() => sendMessageWithRetry(retryCount + 1), 1000)
 					} else {
 						console.error('Error sending message to background:', error)
