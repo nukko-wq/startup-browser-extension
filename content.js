@@ -58,7 +58,7 @@ window.addEventListener('message', (event) => {
 						error.message === 'Extension context invalidated' &&
 						retryCount < 3
 					) {
-						// 少し���ってから再試行
+						// 少し待ってから再試行
 						setTimeout(() => sendMessageWithRetry(retryCount + 1), 1000)
 					} else {
 						console.error('Error sending message to background:', error)
@@ -122,3 +122,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 	}
 	return true
 })
+
+console.log('Content script loaded')
+
+// 拡張機能の準備完了を通知
+chrome.runtime.sendMessage({ type: 'CONTENT_SCRIPT_READY' })

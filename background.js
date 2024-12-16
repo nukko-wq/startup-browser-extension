@@ -189,18 +189,27 @@ async function notifyTabsUpdate() {
 		for (const tab of matchingTabs) {
 			try {
 				const tabInfo = await chrome.tabs.get(tab.id)
-				if (!tabInfo.url.startsWith('chrome-error://')) {
-					await chrome.tabs.sendMessage(tab.id, {
-						type: 'TABS_UPDATED',
-						tabs: tabs,
-					})
+				// タブが有効で、エラーページでないことを確認
+				if (tabInfo && !tabInfo.url.startsWith('chrome-error://')) {
+					// メッセージ送信時のエラーを適切に処理
+					try {
+						await chrome.tabs.sendMessage(tab.id, {
+							type: 'TABS_UPDATED',
+							tabs: tabs,
+						})
+					} catch (error) {
+						// 接続エラーは無視して続行
+						if (!error.message.includes('Receiving end does not exist')) {
+							console.error(`Tab ${tab.id} への更新送信エラー:`, error)
+						}
+					}
 				}
 			} catch (error) {
-				console.error('Error sending tab update:', error)
+				console.error('タブ情報の取得エラー:', error)
 			}
 		}
 	} catch (error) {
-		console.error('Error in notifyTabsUpdate:', error)
+		console.error('notifyTabsUpdateでのエラー:', error)
 	}
 }
 
