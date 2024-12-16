@@ -11,14 +11,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 				},
 				'*',
 			)
-		} else {
-			window.postMessage(message, '*')
+			sendResponse({ received: true })
+			return
 		}
-		sendResponse({ received: true })
+		window.postMessage(message, '*')
 	} catch (error) {
 		console.error('Error posting message:', error)
 	}
-	return true
 })
 
 // Webアプリからのメッセージをbackground.jsに転送
