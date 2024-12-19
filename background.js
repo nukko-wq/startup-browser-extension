@@ -108,7 +108,7 @@ async function handleMessage(message, sendResponse) {
 			case 'FIND_OR_CREATE_STARTUP_TAB': {
 				// 既存のStartupタブを探す
 				const tabs = await chrome.tabs.query({
-					url: ['http://localhost:3000/*'],
+					url: ['https://startup.nukko.dev/*'],
 				})
 
 				if (tabs.length > 0) {
@@ -118,7 +118,7 @@ async function handleMessage(message, sendResponse) {
 				} else {
 					// 新しいタブを作成
 					const newTab = await chrome.tabs.create({
-						url: 'http://localhost:3000',
+						url: 'https://startup.nukko.dev',
 						active: true,
 					})
 					sendResponse({ success: true, tabId: newTab.id })
@@ -140,6 +140,12 @@ async function handleMessage(message, sendResponse) {
 				} else {
 					sendResponse({ success: false, error: 'No active tab found' })
 				}
+				return
+			}
+
+			case 'PING': {
+				// 拡張機能の生存確認用
+				sendResponse({ success: true })
 				return
 			}
 
@@ -183,7 +189,7 @@ async function notifyTabsUpdate() {
 	try {
 		const tabs = await getAllTabs()
 		const matchingTabs = await chrome.tabs.query({
-			url: ['http://localhost:3000/*'],
+			url: ['https://startup.nukko.dev/*'],
 		})
 
 		for (const tab of matchingTabs) {
