@@ -109,8 +109,6 @@ setInterval(checkExtensionContext, 5000)
 
 // background.jsからのメッセージを処理
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-	console.log('Content script received message:', message) // デバッグ用
-
 	if (message.type === 'SHOW_SPACE_LIST_OVERLAY') {
 		console.log('Forwarding SHOW_SPACE_LIST_OVERLAY message to webapp') // デバッグ用
 		window.postMessage(
@@ -124,8 +122,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 	}
 	return true
 })
-
-console.log('Content script loaded')
 
 // 拡張機能の準備完了を通知
 chrome.runtime.sendMessage({ type: 'CONTENT_SCRIPT_READY' })
