@@ -109,7 +109,10 @@ setInterval(checkExtensionContext, 5000)
 
 // background.jsからのメッセージを処理
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+	console.log('Content script received message:', message) // デバッグ用
+
 	if (message.type === 'SHOW_SPACE_LIST_OVERLAY') {
+		console.log('Forwarding SHOW_SPACE_LIST_OVERLAY message to webapp') // デバッグ用
 		window.postMessage(
 			{
 				source: 'startup-extension',
