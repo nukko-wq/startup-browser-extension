@@ -1,3 +1,6 @@
+// メッセージ処理の重複を防ぐためのフラグ
+let isProcessingMessage = false
+
 // background.jsからのメッセージをWebアプリに転送
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 	try {
@@ -12,11 +15,36 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 				'*',
 			)
 			sendResponse({ received: true })
-			return
+			return true
 		}
-		window.postMessage(message, '*')
+
+		if (message.type === 'SHOW_SPACE_LIST_OVERLAY') {
+			console.log('Forwarding SHOW_SPACE_LIST_OVERLAY message to webapp')
+			window.postMessage(
+				{
+					source: 'startup-extension',
+					type: 'SHOW_SPACE_LIST_OVERLAY',
+				},
+				'*',
+			)
+			sendResponse({ success: true })
+			return true
+		}
+
+		// その他のメッセージも転送
+		window.postMessage(
+			{
+				source: 'startup-extension',
+				...message,
+			},
+			'*',
+		)
+		sendResponse({ received: true })
+		return true
 	} catch (error) {
 		console.error('Error posting message:', error)
+		sendResponse({ success: false, error: error.message })
+		return true
 	}
 })
 
@@ -24,9 +52,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 window.addEventListener('message', (event) => {
 	if (event.source !== window) return
 	if (event.data.source === 'startup-extension') return
+	if (isProcessingMessage) return
 
 	try {
 		if (event.data.source === 'webapp') {
+			isProcessingMessage = true
+
 			// 拡張機能のコンテキストが有効かチェック
 			if (!chrome.runtime?.id) {
 				console.log('Extension context invalid')
@@ -38,13 +69,23 @@ window.addEventListener('message', (event) => {
 					},
 					'*',
 				)
+				isProcessingMessage = false
 				return
 			}
 
 			// メッセージ送信を試みる
 			const sendMessageWithRetry = async (retryCount = 0) => {
 				try {
-					const response = await chrome.runtime.sendMessage(event.data)
+					const response = await new Promise((resolve, reject) => {
+						chrome.runtime.sendMessage(event.data, (response) => {
+							if (chrome.runtime.lastError) {
+								reject(new Error(chrome.runtime.lastError.message))
+							} else {
+								resolve(response)
+							}
+						})
+					})
+
 					window.postMessage(
 						{
 							source: 'startup-extension',
@@ -54,7 +95,8 @@ window.addEventListener('message', (event) => {
 					)
 				} catch (error) {
 					if (
-						error.message === 'Extension context invalidated' &&
+						(error.message.includes('Extension context invalidated') ||
+							error.message.includes('message port closed')) &&
 						retryCount < 3
 					) {
 						// 少し待ってから再試行
@@ -70,6 +112,8 @@ window.addEventListener('message', (event) => {
 							'*',
 						)
 					}
+				} finally {
+					isProcessingMessage = false
 				}
 			}
 
@@ -85,6 +129,7 @@ window.addEventListener('message', (event) => {
 			},
 			'*',
 		)
+		isProcessingMessage = false
 	}
 })
 
@@ -107,21 +152,16 @@ const checkExtensionContext = () => {
 // 定期的にコンテキストをチェック
 setInterval(checkExtensionContext, 5000)
 
-// background.jsからのメッセージを処理
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-	if (message.type === 'SHOW_SPACE_LIST_OVERLAY') {
-		console.log('Forwarding SHOW_SPACE_LIST_OVERLAY message to webapp') // デバッグ用
-		window.postMessage(
-			{
-				source: 'startup-extension',
-				type: 'SHOW_SPACE_LIST_OVERLAY',
-			},
-			'*',
-		)
-		sendResponse({ success: true })
-	}
-	return true
-})
-
 // 拡張機能の準備完了を通知
-chrome.runtime.sendMessage({ type: 'CONTENT_SCRIPT_READY' })
+try {
+	chrome.runtime.sendMessage({ type: 'CONTENT_SCRIPT_READY' }, (response) => {
+		if (chrome.runtime.lastError) {
+			console.warn(
+				'Failed to notify content script ready:',
+				chrome.runtime.lastError.message,
+			)
+		}
+	})
+} catch (error) {
+	console.warn('Failed to send content script ready message:', error)
+}

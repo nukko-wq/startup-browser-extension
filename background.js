@@ -26,25 +26,25 @@ async function handleMessage(message, sendResponse) {
 			case 'REQUEST_TABS_UPDATE': {
 				const tabs = await getAllTabs()
 				sendResponse({ success: true, tabs })
-				return
+				return true
 			}
 
 			case 'SWITCH_TO_TAB': {
 				await chrome.tabs.update(message.tabId, { active: true })
 				sendResponse({ success: true })
-				return
+				return true
 			}
 
 			case 'CLOSE_TAB': {
 				await chrome.tabs.remove(message.tabId)
 				sendResponse({ success: true })
-				return
+				return true
 			}
 
 			case 'SET_TOKEN': {
 				await chrome.storage.local.set({ token: message.token })
 				sendResponse({ success: true })
-				return
+				return true
 			}
 
 			case 'CLOSE_ALL_TABS': {
@@ -62,7 +62,7 @@ async function handleMessage(message, sendResponse) {
 					await chrome.tabs.remove(tabsToClose.map((tab) => tab.id))
 				}
 				sendResponse({ success: true })
-				return
+				return true
 			}
 
 			case 'SORT_TABS_BY_DOMAIN': {
@@ -108,7 +108,7 @@ async function handleMessage(message, sendResponse) {
 			case 'FIND_OR_CREATE_STARTUP_TAB': {
 				// 既存のStartupタブを探す
 				const tabs = await chrome.tabs.query({
-					url: ['https://startup.nukko.dev/*'],
+					url: ['http://localhost:3000/*'],
 				})
 
 				if (tabs.length > 0) {
@@ -118,12 +118,12 @@ async function handleMessage(message, sendResponse) {
 				} else {
 					// 新しいタブを作成
 					const newTab = await chrome.tabs.create({
-						url: 'https://startup.nukko.dev/*',
+						url: 'http://localhost:3000/',
 						active: true,
 					})
 					sendResponse({ success: true, tabId: newTab.id })
 				}
-				return
+				return true
 			}
 
 			case 'OPEN_TAB_AT_END': {
@@ -139,7 +139,7 @@ async function handleMessage(message, sendResponse) {
 					index: allTabs.length, // 一番右側に配置
 				})
 				sendResponse({ success: true, tabId: newTab.id })
-				return
+				return true
 			}
 
 			case 'SHOW_SPACE_LIST_OVERLAY': {
@@ -149,53 +149,74 @@ async function handleMessage(message, sendResponse) {
 					currentWindow: true,
 				})
 				if (tabs[0]) {
-					await chrome.tabs.sendMessage(tabs[0].id, {
-						type: 'SHOW_SPACE_LIST_OVERLAY',
-					})
-					sendResponse({ success: true })
+					try {
+						await chrome.tabs.sendMessage(tabs[0].id, {
+							type: 'SHOW_SPACE_LIST_OVERLAY',
+						})
+						sendResponse({ success: true })
+					} catch (error) {
+						console.error('Error sending message to content script:', error)
+						sendResponse({ success: false, error: error.message })
+					}
 				} else {
 					sendResponse({ success: false, error: 'No active tab found' })
 				}
-				return
+				return true
 			}
 
 			case 'PING': {
 				// 拡張機能の生存確認用
 				sendResponse({ success: true })
-				return
+				return true
+			}
+
+			case 'CONTENT_SCRIPT_READY': {
+				// content scriptの準備完了通知
+				sendResponse({ success: true })
+				return true
 			}
 
 			default:
 				sendResponse({ success: false, error: 'Unknown message type' })
-				return
+				return true
 		}
 	} catch (error) {
+		console.error('Error in handleMessage:', error)
 		sendResponse({ success: false, error: error.message })
+		return true
 	}
 }
 
 // 内部メッセージ（content scriptから）を処理
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-	handleMessage(message, sendResponse).catch((error) => {
-		console.error('Error handling message:', error)
-		sendResponse({
-			success: false,
-			error: error.message || 'Unknown error occurred',
+	// 非同期処理を適切に処理
+	const result = handleMessage(message, sendResponse)
+	if (result instanceof Promise) {
+		result.catch((error) => {
+			console.error('Error handling message:', error)
+			sendResponse({
+				success: false,
+				error: error.message || 'Unknown error occurred',
+			})
 		})
-	})
+	}
 	return true // 非同期レスポンスを使用することを示す
 })
 
 // 外部メッセージ（Webアプリから直接）を処理
 chrome.runtime.onMessageExternal.addListener(
 	(message, sender, sendResponse) => {
-		handleMessage(message, sendResponse).catch((error) => {
-			console.error('Error handling external message:', error)
-			sendResponse({
-				success: false,
-				error: error.message || 'Unknown error occurred',
+		// 非同期処理を適切に処理
+		const result = handleMessage(message, sendResponse)
+		if (result instanceof Promise) {
+			result.catch((error) => {
+				console.error('Error handling external message:', error)
+				sendResponse({
+					success: false,
+					error: error.message || 'Unknown error occurred',
+				})
 			})
-		})
+		}
 		return true // 非同期レスポンスを使用することを示す
 	},
 )
@@ -205,7 +226,7 @@ async function notifyTabsUpdate() {
 	try {
 		const tabs = await getAllTabs()
 		const matchingTabs = await chrome.tabs.query({
-			url: ['https://startup.nukko.dev/*'],
+			url: ['http://localhost:3000/*'],
 		})
 
 		for (const tab of matchingTabs) {
@@ -255,10 +276,14 @@ chrome.commands.onCommand.addListener(async (command) => {
 	if (command === 'show_space_list') {
 		try {
 			// まずStartupタブを表示
-			await handleMessage({ type: 'FIND_OR_CREATE_STARTUP_TAB' }, () => {})
+			await new Promise((resolve) => {
+				handleMessage({ type: 'FIND_OR_CREATE_STARTUP_TAB' }, resolve)
+			})
 			// 少し待ってからオーバーレイを表示
 			setTimeout(async () => {
-				await handleMessage({ type: 'SHOW_SPACE_LIST_OVERLAY' }, () => {})
+				await new Promise((resolve) => {
+					handleMessage({ type: 'SHOW_SPACE_LIST_OVERLAY' }, resolve)
+				})
 			}, 500)
 		} catch (error) {
 			console.error('Error showing space list:', error)
