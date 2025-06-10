@@ -41,6 +41,31 @@ async function handleMessage(message, sendResponse) {
 				return true
 			}
 
+			case 'MOVE_TAB': {
+				try {
+					// 現在のウィンドウのピン留めタブ数を取得
+					const currentWindow = await chrome.windows.getCurrent()
+					const pinnedTabs = await chrome.tabs.query({
+						windowId: currentWindow.id,
+						pinned: true,
+					})
+
+					// ピン留めタブの数だけオフセットを加えて実際の位置を計算
+					const actualIndex = message.newIndex + pinnedTabs.length
+
+					// タブを指定された位置に移動
+					await chrome.tabs.move(message.tabId, { index: actualIndex })
+					sendResponse({ success: true })
+				} catch (error) {
+					console.error('Error in MOVE_TAB:', error)
+					sendResponse({
+						success: false,
+						error: error.message || 'Failed to move tab',
+					})
+				}
+				return true
+			}
+
 			case 'SET_TOKEN': {
 				await chrome.storage.local.set({ token: message.token })
 				sendResponse({ success: true })
