@@ -130,6 +130,40 @@ async function handleMessage(message, sendResponse) {
 				return true
 			}
 
+			case 'SORT_TABS_BY_ALPHABETICAL': {
+				try {
+					const allTabs = await chrome.tabs.query({
+						currentWindow: true,
+						pinned: false,
+					})
+
+					// タイトルでアルファベット順にソート
+					const sortedTabs = allTabs.sort((a, b) => {
+						const titleA = a.title || ''
+						const titleB = b.title || ''
+						return titleA.localeCompare(titleB, undefined, {
+							sensitivity: 'base',
+							numeric: true,
+						})
+					})
+
+					// タブの位置を順次更新
+					const movePromises = sortedTabs.map((tab, index) =>
+						chrome.tabs.move(tab.id, { index }),
+					)
+					await Promise.all(movePromises)
+
+					sendResponse({ success: true })
+				} catch (error) {
+					console.error('Error in SORT_TABS_BY_ALPHABETICAL:', error)
+					sendResponse({
+						success: false,
+						error: error.message || 'Failed to sort tabs alphabetically',
+					})
+				}
+				return true
+			}
+
 			case 'FIND_OR_CREATE_STARTUP_TAB': {
 				// 既存のStartupタブを探す
 				const tabs = await chrome.tabs.query({
