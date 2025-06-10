@@ -92,15 +92,27 @@ async function handleMessage(message, sendResponse) {
 
 			case 'SORT_TABS_BY_DOMAIN': {
 				try {
+					const currentWindow = await chrome.windows.getCurrent()
 					const allTabs = await chrome.tabs.query({
-						currentWindow: true,
+						windowId: currentWindow.id,
 						pinned: false,
 					})
 
-					// URLからドメインを取得する関数
+					// ピン留めタブ数を取得
+					const pinnedTabs = await chrome.tabs.query({
+						windowId: currentWindow.id,
+						pinned: true,
+					})
+
+					// URLからドメインを取得する関数（wwwプレフィックスを除去）
 					const getDomain = (url) => {
 						try {
-							return new URL(url).hostname
+							let hostname = new URL(url).hostname
+							// wwwプレフィックスを除去
+							if (hostname.startsWith('www.')) {
+								hostname = hostname.substring(4)
+							}
+							return hostname
 						} catch {
 							return url
 						}
@@ -113,10 +125,11 @@ async function handleMessage(message, sendResponse) {
 						return domainA.localeCompare(domainB)
 					})
 
-					// タブの位置を順次更新
-					const movePromises = sortedTabs.map((tab, index) =>
-						chrome.tabs.move(tab.id, { index }),
-					)
+					// ピン留めタブの数だけオフセットを加えてタブの位置を順次更新
+					const movePromises = sortedTabs.map((tab, index) => {
+						const actualIndex = index + pinnedTabs.length
+						return chrome.tabs.move(tab.id, { index: actualIndex })
+					})
 					await Promise.all(movePromises)
 
 					sendResponse({ success: true })
@@ -132,9 +145,16 @@ async function handleMessage(message, sendResponse) {
 
 			case 'SORT_TABS_BY_ALPHABETICAL': {
 				try {
+					const currentWindow = await chrome.windows.getCurrent()
 					const allTabs = await chrome.tabs.query({
-						currentWindow: true,
+						windowId: currentWindow.id,
 						pinned: false,
+					})
+
+					// ピン留めタブ数を取得
+					const pinnedTabs = await chrome.tabs.query({
+						windowId: currentWindow.id,
+						pinned: true,
 					})
 
 					// タイトルでアルファベット順にソート
@@ -147,10 +167,11 @@ async function handleMessage(message, sendResponse) {
 						})
 					})
 
-					// タブの位置を順次更新
-					const movePromises = sortedTabs.map((tab, index) =>
-						chrome.tabs.move(tab.id, { index }),
-					)
+					// ピン留めタブの数だけオフセットを加えてタブの位置を順次更新
+					const movePromises = sortedTabs.map((tab, index) => {
+						const actualIndex = index + pinnedTabs.length
+						return chrome.tabs.move(tab.id, { index: actualIndex })
+					})
 					await Promise.all(movePromises)
 
 					sendResponse({ success: true })
